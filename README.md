@@ -138,7 +138,7 @@ spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-start
 ├── gradle/
 │   ├── libs.versions.toml         # Version catalog
 │   └── wrapper/                   # Gradle wrapper
-├── build-logic/                       # Convention plugins
+├── build-logic/                   # Convention plugins
 │   └── src/main/kotlin/
 │       ├── buildlogic.kotlin-application-conventions.gradle.kts
 │       └── buildlogic.kotlin-common-conventions.gradle.kts
@@ -147,15 +147,15 @@ spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-start
 │   └── detekt/
 │       └── detekt.yml             # Detekt configuration
 ├── common/
-│   └── src/main/kotlin/...       # Shared code
+│   └── src/main/kotlin/...        # Shared code
 ├── domain/
-│   └── src/main/kotlin/...       # Business logic
+│   └── src/main/kotlin/...        # Business logic
 ├── api/
-│   └── src/main/kotlin/...       # REST endpoints
+│   └── src/main/kotlin/...        # REST endpoints
 ├── persistence/
-│   └── src/main/kotlin/...       # Database layer
+│   └── src/main/kotlin/...        # Database layer
 ├── app/
-│   └── src/main/kotlin/...       # Main application
+│   └── src/main/kotlin/...        # Main application
 ├── build.gradle.kts               # Root build file
 └── settings.gradle.kts            # Project settings
 ```
