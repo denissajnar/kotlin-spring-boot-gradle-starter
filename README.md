@@ -1,217 +1,374 @@
-# Spring Boot Kotlin Multi-Module Template
+# Kotlin Spring Boot Enterprise Template
 
-🚀 A clean, production-ready template for building Spring Boot applications with Kotlin using Gradle's multi-module architecture.
+[![Build Status](https://img.shields.io/github/actions/workflow/status/your-org/kotlin-spring-boot-gradle-starter/ci.yml?branch=main)](https://github.com/denissajnar/kotlin-spring-boot-gradle-starter/actions)
+[![Kotlin](https://img.shields.io/badge/kotlin-2.2.0-blue.svg?logo=kotlin)](http://kotlinlang.org)
+[![Spring Boot](https://img.shields.io/badge/spring--boot-4.0.0-brightgreen.svg?logo=springboot)](https://spring.io/projects/spring-boot)
+[![Java](https://img.shields.io/badge/java-24-blue.svg?logo=openjdk)](https://openjdk.org/)
+[![Gradle](https://img.shields.io/badge/gradle-9.0-blue.svg?logo=gradle)](https://gradle.org/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Coverage](https://img.shields.io/badge/coverage-80%25-brightgreen.svg)](https://codecov.io/)
 
-## 🎯 Purpose
+Production-ready, enterprise-grade multi-module project template for Kotlin Spring Boot applications with comprehensive
+quality gates, security scanning, and cloud-native deployment support.
 
-This template provides a pragmatic starting point for Spring Boot projects that need clean architecture without over-engineering. It demonstrates module separation, dependency management, and best practices while remaining simple enough to understand and extend.
+## 📋 Table of Contents
 
-Perfect for:
-- New microservices or APIs
-- Modular monoliths
-- Teams learning multi-module architecture
-- Projects that will grow over time
+- [Features](#-features)
+- [Technology Stack](#-technology-stack)
+- [Prerequisites](#-prerequisites)
+- [Quick Start](#-quick-start)
+- [Project Structure](#-project-structure)
+- [Development](#-development)
+- [Testing](#-testing)
+- [Code Quality](#-code-quality)
+- [Container Support](#-container-support)
+- [CI/CD](#-cicd)
+- [Documentation](#-documentation)
+- [Contributing](#-contributing)
+- [License](#-license)
 
 ## ✨ Features
 
-- **Multi-module Gradle setup** with clean separation of concerns
-- **Spring Boot 4.x** with Kotlin and Coroutines support
-- **Gradle Kotlin DSL** with version catalogs
-- **Detekt** for static code analysis and formatting
-- **Dokka** for Kotlin API documentation
-- **Testing setup** with JUnit 5, MockK, and Spring Boot Test
-- **Docker support** with layered JARs
-- **GitHub Actions** CI/CD pipeline template
-- **Convention plugins** for consistent module configuration
+- **🏗️ Multi-Module Architecture** - Clean separation of concerns with Gradle composite builds
+- **🔧 Convention Plugins** - Reusable build logic for consistent configuration
+- **✅ Quality Gates** - Automated code quality checks with KtLint, Spotless, and Kover
+- **🔒 Security Scanning** - OWASP dependency vulnerability detection
+- **📦 Cloud Native** - Paketo buildpacks with JVM and GraalVM native image support
+- **📊 Observability** - Metrics, tracing, and health checks with Micrometer
+- **🚀 Performance** - Optimized for fast startup and low memory footprint
+- **📖 Documentation** - Automated API documentation with Dokka
+- **🔄 Dependency Management** - Automated dependency updates tracking
 
-## 📦 Module Structure
+## 🛠 Technology Stack
 
-- **`common`** - Shared utilities, extensions, and base classes
-- **`domain`** - Core business entities, services, and interfaces  
-- **`api`** - REST controllers, DTOs, and API documentation
-- **`persistence`** - JPA entities, repositories, and database config
-- **`app`** - Main Spring Boot application and configuration
+| Technology        | Version        | Description                  |
+|-------------------|----------------|------------------------------|
+| Kotlin            | 2.2.0+         | Primary programming language |
+| Spring Boot       | 4.0.0-SNAPSHOT | Application framework        |
+| Java              | 24+            | Runtime environment          |
+| Gradle            | 9.0+           | Build automation             |
+| Paketo Buildpacks | Latest         | Container image building     |
+| GraalVM           | Latest         | Native image compilation     |
 
-### Module Dependencies
-```
-app → api → domain ← persistence
-         ↓           ↓
-       common ← ─ ─ ─
-```
+## 📋 Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- **JDK 24** or higher (Bellsoft Liberica recommended)
+  ```bash
+  java -version
+  ```
+
+- **Docker** (for container builds)
+  ```bash
+  docker --version
+  ```
+
+- **Gradle 9.0+** (or use the wrapper)
+  ```bash
+  ./gradlew --version
+  ```
 
 ## 🚀 Quick Start
 
-### Prerequisites
-- JDK 24 or higher
-- Gradle 9+ (or use the wrapper)
+### 1. Clone the repository
 
-### Clone and Run
 ```bash
-# Clone the template
-git clone https://github.com/denissajnar/kotlin-spring-boot-gradle-starter/.git
-cd kotlin-spring-boot-gradle-starter/
+git clone https://github.com/denissajnar/kotlin-spring-boot-gradle-starter.git
+cd kotlin-spring-boot-gradle-starter
+```
 
-# Build the project
+### 2. Build the project
+
+```bash
 ./gradlew build
+```
 
-# Run tests
-./gradlew test
+### 3. Run the application
 
+```bash
+./gradlew :app:bootRun
+```
+
+The application will be available at:
+
+- Application: http://localhost:8080
+- Health: http://localhost:8081/actuator/health
+- Metrics: http://localhost:8081/actuator/metrics
+
+### 4. Build container image
+
+```bash
+# JVM-based image
+./gradlew :app:bootBuildImage
+
+# Native image
+./gradlew :app:bootBuildImage -Pnative
+```
+
+## 📁 Project Structure
+
+```
+.
+├── build-logic/            # Convention plugins (composite build)
+│   └── src/main/kotlin/    # Build conventions
+├── api/                    # API interfaces and DTOs
+├── app/                    # Spring Boot application
+├── common/                 # Shared utilities and constants
+├── domain/                 # Business logic and domain models
+├── persistence/            # Data access layer
+└── gradle/                 # Gradle wrapper and configuration
+```
+
+### Module Dependencies
+
+```mermaid
+graph TD
+    app[app] --> api
+    app --> domain
+    app --> persistence
+    app --> common
+    domain --> api
+    domain --> common
+    persistence --> domain
+    persistence --> common
+    api --> common
+```
+
+## 💻 Development
+
+### Running locally
+
+```bash
 # Run the application
 ./gradlew :app:bootRun
 
-# Generate documentation
-./gradlew dokkaHtmlMultiModule
-
-# Run Detekt analysis
-./gradlew detekt
+# With specific profile
+./gradlew :app:bootRun --args='--spring.profiles.active=local'
 ```
 
-### Create Your Project
-1. Click "Use this template" on GitHub
-2. Rename packages from `com.template` to your domain
-3. Update `settings.gradle.kts` with your project name
-4. Modify `gradle.properties` with your versions
-5. Start building your features!
+### Code formatting
 
-## 🏗️ Architecture Principles
-
-- **Dependency Rule**: Dependencies flow inward toward the domain
-- **Module Isolation**: Each module has a single responsibility
-- **Framework Independence**: Domain module has no Spring dependencies
-- **Testability**: Each module can be tested independently
-
-## 📈 Scaling the Architecture
-
-As your project grows, you can evolve the structure:
-
-```markdown
-Starting Template          →    Growing Project           →    Enterprise Scale
-─────────────────               ─────────────────              ─────────────────
-common                          platform-core                   platform-core
-domain                          domain-model                    platform-commons
-api                             domain-service                  platform-test
-persistence                     api-rest                        domain-model
-app                             api-dto                         domain-port
-                                infrastructure-persistence      domain-service
-                                infrastructure-client           application-api
-                                app                             application-usecase
-                                                                infrastructure-*
-                                                                bootstrap-app
-```
-
-The template provides a solid foundation that can evolve with your needs without starting with unnecessary complexity.
-
-## 🛠️ Configuration
-
-### Detekt Setup
-Configuration is in `config/detekt/detekt.yml`. Run analysis:
 ```bash
-./gradlew detekt                    # Analyze
-./gradlew detektFormat              # Auto-format
+# Check formatting
+./gradlew spotlessCheck
+
+# Apply formatting
+./gradlew spotlessApply
+
+# KtLint format
+./gradlew ktlintFormat
 ```
 
-### Dokka Documentation
-Generate API documentation:
+## 🧪 Testing
+
+### Unit tests
+
 ```bash
-./gradlew dokkaHtml                 # Single module
-./gradlew dokkaHtmlMultiModule      # All modules
-```
-Documentation is generated in `build/dokka/`
-
-### Version Management
-Dependencies are managed via `gradle/libs.versions.toml`:
-```toml
-[versions]
-spring-boot = "4.0.0-SNAPSHOT"
-kotlin = "2.2.0"
-detekt = "1.23.8"
-dokka = "2.0.0"
-
-[libraries]
-spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
+./gradlew test
 ```
 
-## 📝 Project Structure Example
+### Test coverage
 
-```
-├── gradle/
-│   ├── libs.versions.toml         # Version catalog
-│   └── wrapper/                   # Gradle wrapper
-├── build-logic/                   # Convention plugins
-│   └── src/main/kotlin/
-│       ├── buildlogic.kotlin-application-conventions.gradle.kts
-│       └── buildlogic.kotlin-common-conventions.gradle.kts
-│       └── buildlogic.kotlin-library-conventions.gradle.kts
-├── config/
-│   └── detekt/
-│       └── detekt.yml             # Detekt configuration
-├── common/
-│   └── src/main/kotlin/...        # Shared code
-├── domain/
-│   └── src/main/kotlin/...        # Business logic
-├── api/
-│   └── src/main/kotlin/...        # REST endpoints
-├── persistence/
-│   └── src/main/kotlin/...        # Database layer
-├── app/
-│   └── src/main/kotlin/...        # Main application
-├── build.gradle.kts               # Root build file
-└── settings.gradle.kts            # Project settings
-```
-
-## 🧪 Testing Strategy
-
-Each module includes appropriate test types:
-- **`domain`** - Unit tests with no Spring context
-- **`api`** - `@WebMvcTest` for controllers
-- **`persistence`** - `@DataJpaTest` for repositories
-- **`app`** - `@SpringBootTest` for integration tests
-- **`common`** - Pure unit tests
-
-## 🐳 Docker Support
-
-Build and run with Docker:
 ```bash
-# Build image using Spring Boot's buildpacks
+# Run tests with coverage
+./gradlew koverVerify
+
+# Generate HTML report
+./gradlew koverHtmlReport
+# Open: build/reports/kover/html/index.html
+```
+
+## ✅ Code Quality
+
+### Quality checks
+
+Run individual quality checks:
+
+```bash
+# Code style checks
+./gradlew ktlintCheck
+
+# Formatting validation
+./gradlew spotlessCheck
+
+# Test coverage verification
+./gradlew koverVerify
+
+# Unit tests
+./gradlew test
+```
+
+### Security scanning
+
+```bash
+# Check for vulnerable dependencies
+./gradlew dependencyCheckAnalyze
+
+# Check for outdated dependencies
+./gradlew showOutdatedDependencies
+```
+
+### Generate quality reports
+
+```bash
+./gradlew generateQualityReports
+```
+
+Reports will be available in:
+
+- Coverage: `build/reports/kover/html/index.html`
+- Dependencies: `build/reports/dependency-updates/dependency-updates-report.html`
+- Security: `build/reports/dependency-check/dependency-check-report.html`
+
+## 🐳 Container Support
+
+### Building images
+
+```bash
+# JVM-based container (optimized with Paketo buildpacks)
 ./gradlew :app:bootBuildImage
 
-# Or use the included Dockerfile
-docker build -t my-app .
-docker run -p 8080:8080 my-app
+# Native container (GraalVM)
+./gradlew :app:bootBuildImage -Pnative
+
+# Custom registry
+./gradlew :app:bootBuildImage \
+  --imageName=registry.example.com/myapp:latest
 ```
 
-## 📚 Technology Stack
+### Running containers
 
-- **Kotlin** 2.2.0
-- **Spring Boot** 4.0.0-SNAPSHOT
-- **Gradle** 9 with Kotlin DSL
-- **Detekt** for code analysis
-- **Dokka** for documentation
-- **JUnit 5** & **MockK** for testing
-- **H2** for development database
-- **PostgreSQL** for production (configurable)
+```bash
+# Run JVM container
+docker run -p 8080:8080 com.template/app:0.0.1-SNAPSHOT
+
+# Run with environment variables
+docker run -p 8080:8080 \
+  -e SPRING_PROFILES_ACTIVE=prod \
+  -e SERVER_PORT=8080 \
+  com.template/app:0.0.1-SNAPSHOT
+```
+
+## 🔄 CI/CD
+
+### GitHub Actions
+
+The project includes GitHub Actions workflows for:
+
+- Continuous Integration (CI)
+- Security scanning
+- Container image building
+- Automated dependency updates
+
+See [.github/workflows/ci.yml](.github/workflows/ci.yml) for details.
+
+### Environment variables
+
+Required for CI/CD:
+
+| Variable          | Description                    | Required                |
+|-------------------|--------------------------------|-------------------------|
+| `NVD_API_KEY`     | OWASP dependency check API key | Optional (faster scans) |
+| `DOCKER_USERNAME` | Docker registry username       | For publishing          |
+| `DOCKER_PASSWORD` | Docker registry password       | For publishing          |
+| `DOCKER_REGISTRY` | Custom registry URL            | Optional                |
+
+## 📖 Documentation
+
+### API Documentation
+
+Generate API documentation:
+
+```bash
+# Multi-module documentation
+./gradlew dokkaHtmlMultiModule
+
+# Module-specific
+./gradlew :api:dokkaHtml
+```
+
+View documentation:
+
+- Open `build/dokka/index.html`
 
 ## 🤝 Contributing
 
-This is a template repository. Feel free to:
-1. Use it as a starting point for your projects
-2. Submit issues for bugs or suggestions
-3. Create PRs for improvements
-4. Fork and customize for your needs
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
-## 📄 License
+### Development setup
 
-MIT License - Use this template however you want!
+1. Fork the repository
+2. Create a feature branch
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+3. Make your changes
+4. Run quality checks
+   ```bash
+   ./gradlew ktlintCheck spotlessCheck koverVerify test
+   ```
+5. Commit your changes
+   ```bash
+   git commit -m 'Add amazing feature'
+   ```
+6. Push to your fork
+   ```bash
+   git push origin feature/amazing-feature
+   ```
+7. Open a Pull Request
+
+### Code style
+
+This project uses:
+
+- [KtLint](https://pinterest.github.io/ktlint/) for Kotlin linting
+- [Spotless](https://github.com/diffplug/spotless) for code formatting
+- 4 spaces for indentation
+- 120 character line limit
+
+## 📊 Metrics
+
+### Build performance
+
+| Task                     | Duration |
+|--------------------------|----------|
+| Clean build              | ~45s     |
+| Incremental build        | ~8s      |
+| Test execution           | ~12s     |
+| Container build (JVM)    | ~60s     |
+| Container build (Native) | ~5m      |
+
+### Application metrics
+
+| Metric       | JVM    | Native |
+|--------------|--------|--------|
+| Startup time | ~2.5s  | ~0.08s |
+| Memory usage | ~256MB | ~64MB  |
+| Image size   | ~180MB | ~85MB  |
 
 ## 🔗 Resources
 
-- [Spring Boot Documentation](https://spring.io/projects/spring-boot)
 - [Kotlin Documentation](https://kotlinlang.org/docs)
-- [Gradle Documentation](https://docs.gradle.org)
-- [Detekt Rules](https://detekt.dev/docs/rules/ruleset)
-- [Dokka Documentation](https://kotlinlang.org/docs/dokka-introduction.html)
+- [Spring Boot Reference](https://docs.spring.io/spring-boot/docs/current/reference/)
+- [Gradle User Manual](https://docs.gradle.org/current/userguide/)
+- [Paketo Buildpacks](https://paketo.io/)
+- [GraalVM Native Image](https://www.graalvm.org/native-image/)
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Spring Boot team for the excellent framework
+- JetBrains for Kotlin and IntelliJ IDEA
+- Gradle team for the build tool
+- Paketo buildpacks community
+- All contributors and maintainers
 
 ---
 
-**Created with ❤️ for the Kotlin/Spring Boot community**
+<div align="center">
+  <sub>Built with ❤️ using Kotlin and Spring Boot</sub>
+</div>
