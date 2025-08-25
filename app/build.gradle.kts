@@ -18,12 +18,12 @@ tasks.bootBuildImage {
                     --no-fallback
                     --enable-url-protocols=http,https
                     -H:+ReportExceptionStackTraces
-                    """
-                        .trimIndent()
-                        .replace("\n", " ")
+                    """.trimIndent()
+                        .replace("\n", " "),
                 )
             }
-        })
+        },
+    )
 
     pullPolicy.set(PullPolicy.IF_NOT_PRESENT)
 
@@ -32,8 +32,8 @@ tasks.bootBuildImage {
     tags.set(
         listOf(
             "${project.group}/${project.name}:latest",
-            "${project.group}/${project.name}:${project.version}"
-        )
+            "${project.group}/${project.name}:${project.version}",
+        ),
     )
 }
 

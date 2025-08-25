@@ -161,13 +161,23 @@ We follow the [Kotlin Coding Conventions](https://kotlinlang.org/docs/coding-con
 ./gradlew spotlessCheck ktlintCheck
 ```
 
-**Pre-commit Hook (Recommended):**
+**Pre-commit Hooks (Recommended):**
+
+Set up automated pre-commit hooks for consistent code quality:
 
 ```bash
-# Create .git/hooks/pre-commit
-#!/bin/sh
-./gradlew spotlessCheck ktlintCheck
+# One-time setup (recommended)
+./setup-pre-commit.sh
+
+# Or manual setup
+pip3 install pre-commit
+pre-commit install
+pre-commit install --hook-type pre-push
 ```
+
+The pre-commit framework will automatically run multiple quality checks before each commit:
+
+- File validation, formatting checks, tests, coverage verification, and security scans.
 
 ### Code Quality Tools
 
