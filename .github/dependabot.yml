@@ -1,0 +1,68 @@
+version: 2
+updates:
+  # Enable version updates for Gradle dependencies
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "@maintainers"
+    assignees:
+      - "@maintainers"
+    commit-message:
+      prefix: "build"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "gradle"
+    ignore:
+      # Ignore major version updates for Spring Boot snapshots
+      - dependency-name: "org.springframework.boot:*"
+        update-types: [ "version-update:semver-major" ]
+      # Ignore patch updates for stable releases
+      - dependency-name: "*"
+        update-types: [ "version-update:semver-patch" ]
+    groups:
+      spring-boot:
+        patterns:
+          - "org.springframework.boot:*"
+          - "org.springframework:*"
+      kotlin:
+        patterns:
+          - "org.jetbrains.kotlin:*"
+          - "org.jetbrains.kotlinx:*"
+      testing:
+        patterns:
+          - "org.junit.jupiter:*"
+          - "org.junit.platform:*"
+          - "org.assertj:*"
+          - "io.mockk:*"
+          - "org.testcontainers:*"
+      build-tools:
+        patterns:
+          - "com.diffplug.spotless:*"
+          - "org.jlleitschuh.gradle.ktlint:*"
+          - "org.jetbrains.kotlinx.kover:*"
+          - "org.jetbrains.dokka:*"
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "@maintainers"
+    assignees:
+      - "@maintainers"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
