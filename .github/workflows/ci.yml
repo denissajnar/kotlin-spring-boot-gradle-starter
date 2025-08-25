@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ master, develop, 'release/**' ]
   workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * 1'  # Weekly on Mondays at 2:00 AM UTC
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -47,9 +52,6 @@ jobs:
 
       - name: Check code formatting
         run: ./gradlew spotlessCheck
-
-      - name: Run KtLint
-        run: ./gradlew ktlintCheck
 
   build-and-test:
     name: Build & Test
@@ -130,6 +132,9 @@ jobs:
     name: Code Coverage
     runs-on: ubuntu-latest
     needs: [ build-and-test ]
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -149,7 +154,7 @@ jobs:
         run: ./gradlew koverXmlReport
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           file: ./build/reports/kover/report.xml
           flags: unittests
@@ -157,10 +162,21 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
 
+      - name: Add coverage comment to PR
+        uses: marocchino/sticky-pull-request-comment@v2
+        if: github.event_name == 'pull_request'
+        with:
+          recreate: true
+          path: ./build/reports/kover/report.xml
+
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
     needs: validate
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -190,11 +206,21 @@ jobs:
           path: build/reports/
           retention-days: 30
 
+      - name: Upload SARIF results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: build/reports/dependency-check-report.sarif
+        continue-on-error: true
+
   build-docker-image:
     name: Build Docker Image
     runs-on: ubuntu-latest
     needs: [ code-quality, build-and-test ]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/heads/hotfix/'))
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -214,6 +240,21 @@ jobs:
       - name: Build Docker image
         run: ./gradlew :app:bootBuildImage --imageName=${{ github.repository }}:${{ github.sha }}
 
+      - name: Run Docker security scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ github.repository }}:${{ github.sha }}'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+        continue-on-error: true
+
+      - name: Upload Trivy scan results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+        continue-on-error: true
+
       - name: Save Docker image
         run: docker save ${{ github.repository }}:${{ github.sha }} | gzip > app-image.tar.gz
 
@@ -222,6 +263,68 @@ jobs:
         with:
           name: docker-image
           path: app-image.tar.gz
+          retention-days: 7
+
+  generate-documentation:
+    name: Generate Documentation
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/develop')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'liberica'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/master' && github.ref != 'refs/heads/develop' }}
+
+      - name: Generate Dokka documentation
+        run: ./gradlew dokkaGenerate
+
+      - name: Upload documentation
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-documentation
+          path: |
+            **/build/dokka/
+          retention-days: 30
+
+  build-native-image:
+    name: Build Native Image
+    runs-on: ubuntu-latest
+    needs: [ code-quality, build-and-test ]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/release/'))
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup GraalVM
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'graalvm-community'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build native image
+        run: ./gradlew :app:nativeCompile
+        env:
+          NATIVE_IMAGE_OPTS: --verbose
+
+      - name: Upload native executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-executable
+          path: app/build/native/nativeCompile/
           retention-days: 7
 
   dependency-updates:

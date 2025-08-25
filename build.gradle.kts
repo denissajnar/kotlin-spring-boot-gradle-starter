@@ -1,7 +1,7 @@
 plugins {
     idea
-    alias(libs.plugins.dokka)
-    id("buildlogic.security-maintenance")
+    alias(libs.plugins.dependency.check)
+    alias(libs.plugins.ben.manes)
 }
 
 allprojects {
@@ -21,10 +21,35 @@ tasks {
     wrapper {
         distributionType = Wrapper.DistributionType.ALL
     }
+}
 
-    dokkaHtmlMultiModule.configure {
-        outputDirectory.set(layout.buildDirectory.dir("dokka"))
-        moduleName.set(providers.gradleProperty("dokka.moduleName").get())
+dependencyCheck {
+    format = "ALL"
+    suppressionFile = "owasp-suppressions.xml"
+    failBuildOnCVSS = 8.0f
+    analyzers {
+        assemblyEnabled = false
+        nuspecEnabled = false
+        nugetconfEnabled = false
+    }
+}
+
+tasks.dependencyUpdates {
+    checkForGradleUpdate = true
+    outputFormatter = "json"
+    outputDir = "build/dependencyUpdates"
+    reportfileName = "report"
+    revision = "release"
+    gradleReleaseChannel = "current"
+
+    rejectVersionIf {
+        candidate.version.contains("alpha", ignoreCase = true) ||
+                candidate.version.contains("beta", ignoreCase = true) ||
+                candidate.version.contains("rc", ignoreCase = true) ||
+                candidate.version.contains("cr", ignoreCase = true) ||
+                candidate.version.contains("m", ignoreCase = true) ||
+                candidate.version.contains("preview", ignoreCase = true) ||
+                candidate.version.contains("eap", ignoreCase = true)
     }
 }
 
