@@ -10,8 +10,6 @@ assertj = "3.27.4"
 mockk = "1.14.5"
 kover = "0.9.1"
 spotless = "7.2.1"
-dependency-check = "12.1.3"
-ben-manes-plugin = "0.52.0"
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
@@ -22,8 +20,6 @@ kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotl
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
-dependency-check = { id = "org.owasp.dependencycheck", version.ref = "dependency-check" }
-ben-manes = { id = "com.github.ben-manes.versions", version.ref = "ben-manes-plugin" }
 
 [libraries]
 # Build plugins
@@ -31,8 +27,6 @@ kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", v
 dokka-gradle-plugin = { module = "org.jetbrains.dokka:dokka-gradle-plugin", version.ref = "dokka" }
 kover-gradle-plugin = { module = "org.jetbrains.kotlinx:kover-gradle-plugin", version.ref = "kover" }
 spotless-gradle-plugin = { module = "com.diffplug.spotless:spotless-plugin-gradle", version.ref = "spotless" }
-dependency-check-gradle = { module = "org.owasp:dependency-check-gradle", version.ref = "dependency-check" }
-ben-manes-gradle-plugin = { module = "com.github.ben-manes:gradle-versions-plugin", version.ref = "ben-manes-plugin" }
 
 # Spring Boot dependencies
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }

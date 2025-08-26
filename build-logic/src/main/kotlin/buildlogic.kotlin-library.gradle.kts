@@ -5,7 +5,6 @@ plugins {
     id("com.diffplug.spotless")
 }
 
-// Spotless configuration for consistent code formatting
 spotless {
     kotlin {
         target("**/*.kt")

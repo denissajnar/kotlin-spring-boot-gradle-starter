@@ -12,8 +12,6 @@ dependencies {
     implementation(plugin(libs.plugins.dokka))
     implementation(plugin(libs.plugins.kover))
     implementation(plugin(libs.plugins.spotless))
-    implementation(plugin(libs.plugins.dependency.check))
-    implementation(plugin(libs.plugins.ben.manes))
 }
 
 fun DependencyHandlerScope.plugin(plugin: Provider<PluginDependency>) =
