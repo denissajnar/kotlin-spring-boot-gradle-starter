@@ -1,15 +1,13 @@
-# Kotlin Spring Boot Enterprise Template
+# Kotlin Spring Boot Gradle Starter
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/your-org/kotlin-spring-boot-gradle-starter/ci.yml?branch=main)](https://github.com/denissajnar/kotlin-spring-boot-gradle-starter/actions)
 [![Kotlin](https://img.shields.io/badge/kotlin-2.2.0-blue.svg?logo=kotlin)](http://kotlinlang.org)
-[![Spring Boot](https://img.shields.io/badge/spring--boot-4.0.0-brightgreen.svg?logo=springboot)](https://spring.io/projects/spring-boot)
+[![Spring Boot](https://img.shields.io/badge/spring--boot-4.0.0--SNAPSHOT-brightgreen.svg?logo=springboot)](https://spring.io/projects/spring-boot)
 [![Java](https://img.shields.io/badge/java-24-blue.svg?logo=openjdk)](https://openjdk.org/)
-[![Gradle](https://img.shields.io/badge/gradle-9.0-blue.svg?logo=gradle)](https://gradle.org/)
+[![Gradle](https://img.shields.io/badge/gradle-wrapper-blue.svg?logo=gradle)](https://gradle.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Coverage](https://img.shields.io/badge/coverage-80%25-brightgreen.svg)](https://codecov.io/)
 
-Production-ready, enterprise-grade multi-module project template for Kotlin Spring Boot applications with comprehensive
-quality gates, security scanning, and cloud-native deployment support.
+A multi-module Kotlin Spring Boot starter template with build conventions, code quality tools, and container support
+configured but ready for your implementation.
 
 ## 📋 Table of Contents
 
@@ -29,15 +27,14 @@ quality gates, security scanning, and cloud-native deployment support.
 
 ## ✨ Features
 
-- **🏗️ Multi-Module Architecture** - Clean separation of concerns with Gradle composite builds
-- **🔧 Convention Plugins** - Reusable build logic for consistent configuration
-- **✅ Quality Gates** - Automated code quality checks with KtLint, Spotless, and Kover
-- **🔒 Security Scanning** - OWASP dependency vulnerability detection
-- **📦 Cloud Native** - Paketo buildpacks with JVM and GraalVM native image support
-- **📊 Observability** - Metrics, tracing, and health checks with Micrometer
-- **🚀 Performance** - Optimized for fast startup and low memory footprint
-- **📖 Documentation** - Automated API documentation with Dokka
-- **🔄 Dependency Management** - Automated dependency updates tracking
+- **🏗️ Multi-Module Architecture** - Clean separation of concerns with api, app, common, domain, and persistence modules
+- **🔧 Convention Plugins** - Reusable build logic for consistent configuration across modules
+- **✅ Code Quality Tools** - Pre-configured KtLint, Spotless, and Kover for formatting and coverage
+- **🔒 Security Scanning** - OWASP dependency vulnerability detection configured
+- **📦 Container Support** - Paketo buildpacks with JVM and GraalVM native image support
+- **🌱 Spring Boot Starter Dependencies** - Web, WebFlux, Security, Actuator, and JPA starters included
+- **📖 Documentation** - Dokka configured for API documentation generation
+- **🔄 Dependency Management** - Automated dependency updates tracking with ben-manes plugin
 
 ## 🛠 Technology Stack
 
@@ -90,11 +87,13 @@ cd kotlin-spring-boot-gradle-starter
 ./gradlew :app:bootRun
 ```
 
-The application will be available at:
+The application will start and be available at:
 
 - Application: http://localhost:8080
-- Health: http://localhost:8081/actuator/health
-- Metrics: http://localhost:8081/actuator/metrics
+- Actuator endpoints: http://localhost:8080/actuator
+- Health check: http://localhost:8080/actuator/health
+
+Note: This is a minimal starter application. You'll need to implement your business logic and endpoints.
 
 ### 4. Build container image
 
@@ -252,27 +251,33 @@ docker run -p 8080:8080 \
 
 ## 🔄 CI/CD
 
-### GitHub Actions
+This starter template doesn't include pre-configured CI/CD workflows. You can set up your own CI/CD pipeline using:
 
-The project includes GitHub Actions workflows for:
+### Recommended CI/CD Tools
 
-- Continuous Integration (CI)
-- Security scanning
-- Container image building
-- Automated dependency updates
+- **GitHub Actions** - For GitHub repositories
+- **GitLab CI** - For GitLab repositories
+- **Jenkins** - For enterprise environments
+- **CircleCI** - Alternative CI/CD platform
 
-See [.github/workflows/ci.yml](.github/workflows/ci.yml) for details.
+### Suggested CI/CD Pipeline
 
-### Environment variables
+Your pipeline should include:
 
-Required for CI/CD:
+- Code quality checks: `./gradlew spotlessCheck ktlintCheck`
+- Tests: `./gradlew test`
+- Coverage verification: `./gradlew koverVerify`
+- Security scanning: `./gradlew dependencyCheckAnalyze`
+- Container image building: `./gradlew :app:bootBuildImage`
 
-| Variable          | Description                    | Required                |
-|-------------------|--------------------------------|-------------------------|
-| `NVD_API_KEY`     | OWASP dependency check API key | Optional (faster scans) |
-| `DOCKER_USERNAME` | Docker registry username       | For publishing          |
-| `DOCKER_PASSWORD` | Docker registry password       | For publishing          |
-| `DOCKER_REGISTRY` | Custom registry URL            | Optional                |
+### Environment Variables
+
+For production deployments, consider these environment variables:
+
+| Variable                 | Description                    | Usage                   |
+|--------------------------|--------------------------------|-------------------------|
+| `NVD_API_KEY`            | OWASP dependency check API key | Optional (faster scans) |
+| `SPRING_PROFILES_ACTIVE` | Spring Boot profiles           | Runtime configuration   |
 
 ## 📖 Documentation
 
@@ -327,25 +332,28 @@ This project uses:
 - 4 spaces for indentation
 - 120 character line limit
 
-## 📊 Metrics
+## 📊 Getting Started Tips
 
-### Build performance
+### Build Commands
 
-| Task                     | Duration |
-|--------------------------|----------|
-| Clean build              | ~45s     |
-| Incremental build        | ~8s      |
-| Test execution           | ~12s     |
-| Container build (JVM)    | ~60s     |
-| Container build (Native) | ~5m      |
+| Task                     | Command                                  |
+|--------------------------|------------------------------------------|
+| Clean build              | `./gradlew clean build`                  |
+| Run application          | `./gradlew :app:bootRun`                 |
+| Run tests                | `./gradlew test`                         |
+| Code formatting          | `./gradlew spotlessApply`                |
+| Security scan            | `./gradlew dependencyCheckAnalyze`       |
+| Container build (JVM)    | `./gradlew :app:bootBuildImage`          |
+| Container build (Native) | `./gradlew :app:bootBuildImage -Pnative` |
 
-### Application metrics
+### Next Steps
 
-| Metric       | JVM    | Native |
-|--------------|--------|--------|
-| Startup time | ~2.5s  | ~0.08s |
-| Memory usage | ~256MB | ~64MB  |
-| Image size   | ~180MB | ~85MB  |
+1. Implement your business logic in the `domain` module
+2. Add REST controllers in the `api` module
+3. Configure data access in the `persistence` module
+4. Add shared utilities in the `common` module
+5. Set up your CI/CD pipeline
+6. Configure production environment settings
 
 ## 🔗 Resources
 

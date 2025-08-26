@@ -1,7 +1,8 @@
-# Contributing to Kotlin Spring Boot Enterprise Template
+# Contributing to Kotlin Spring Boot Gradle Starter
 
-Thank you for your interest in contributing to this project! This guide will help you understand our development
-process, coding standards, and how to submit contributions effectively.
+Thank you for your interest in contributing to this starter template! This guide will help you understand the
+development
+setup, coding standards, and how to contribute effectively to this project.
 
 ## 📋 Table of Contents
 
@@ -67,13 +68,13 @@ Before contributing, ensure you have:
 
 ### Branch Strategy
 
-We follow a Git flow-inspired branching model:
+For a starter template, we recommend a simple branching model:
 
-- `master` - Production-ready code
-- `develop` - Integration branch for features
-- `feature/*` - Feature development branches
-- `hotfix/*` - Critical fixes for production
-- `release/*` - Release preparation branches
+- `main` - Stable template code
+- `feature/*` - New template features or improvements
+- `fix/*` - Bug fixes for the template
+
+For your own projects based on this template, choose a branching strategy that fits your team size and needs.
 
 ### Environment Variables
 
@@ -161,34 +162,36 @@ We follow the [Kotlin Coding Conventions](https://kotlinlang.org/docs/coding-con
 ./gradlew spotlessCheck ktlintCheck
 ```
 
-**Pre-commit Hooks (Recommended):**
+**Pre-commit Hooks (Optional):**
 
-Set up automated pre-commit hooks for consistent code quality:
+You can set up pre-commit hooks for consistent code quality:
 
 ```bash
-# One-time setup (recommended)
-./setup-pre-commit.sh
-
-# Or manual setup
+# Install pre-commit (if you want to use it)
 pip3 install pre-commit
+
+# Create a .pre-commit-config.yaml file with your preferred hooks
+# Then install the hooks
 pre-commit install
-pre-commit install --hook-type pre-push
 ```
 
-The pre-commit framework will automatically run multiple quality checks before each commit:
+Consider running quality checks manually before committing:
 
-- File validation, formatting checks, tests, coverage verification, and security scans.
+```bash
+./gradlew spotlessApply ktlintFormat
+./gradlew spotlessCheck ktlintCheck test
+```
 
 ### Code Quality Tools
 
-We use multiple tools to ensure code quality:
+This project is configured with several code quality tools:
 
-- **KtLint**: Kotlin style and formatting
-- **Spotless**: Multi-language code formatting
-- **Kover**: Code coverage measurement
-- **Dokka**: API documentation generation
-- **OWASP**: Dependency vulnerability scanning
-- **SonarCloud**: Continuous code quality inspection
+- **KtLint**: Kotlin style and formatting (configured in convention plugins)
+- **Spotless**: Multi-language code formatting (configured in convention plugins)
+- **Kover**: Code coverage measurement (configured in convention plugins)
+- **Dokka**: API documentation generation (configured in convention plugins)
+- **OWASP**: Dependency vulnerability scanning (configured in root build.gradle.kts)
+- **Ben Manes Plugin**: Dependency update checking (configured in root build.gradle.kts)
 
 ## 🧪 Testing Guidelines
 
@@ -264,23 +267,25 @@ open build/reports/kover/html/index.html
 
 ### Security Scanning
 
-Our CI/CD pipeline includes comprehensive security scanning:
+The template includes basic security scanning tools:
 
 **Dependency Scanning:**
 
 ```bash
-# Check for vulnerable dependencies
+# Check for vulnerable dependencies (OWASP Dependency Check)
 ./gradlew dependencyCheckAnalyze
 
-# Check for outdated dependencies  
+# Check for outdated dependencies (Ben Manes Plugin)
 ./gradlew dependencyUpdates
 ```
 
-**Container Scanning:**
+**Additional Security Tools:**
 
-- **Trivy**: Vulnerability scanning for containers
-- **Grype**: Additional container security analysis
-- **CodeQL**: Static analysis for security issues
+You may want to add additional security scanning to your CI/CD pipeline:
+
+- **Trivy**: Container vulnerability scanning
+- **Snyk**: Dependency and container scanning
+- **CodeQL**: Static code analysis (available in GitHub Advanced Security)
 
 ### Security Best Practices
 
