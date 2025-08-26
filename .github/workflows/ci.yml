@@ -1,0 +1,537 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - master
+      - main
+      - develop
+      - 'release/**'
+      - 'hotfix/**'
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - master
+      - main
+      - develop
+      - 'release/**'
+    types: [ opened, synchronize, reopened ]
+  workflow_dispatch:
+    inputs:
+      skip-tests:
+        description: 'Skip test execution'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx2048m -Dorg.gradle.daemon=false -Dkotlin.incremental=false"
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+permissions:
+  contents: read
+  security-events: write
+  packages: write
+  pull-requests: write
+  checks: write
+
+jobs:
+  # ==================== VALIDATION ====================
+  validate:
+    name: Validate Gradle Wrapper
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+  # ==================== CODE QUALITY ====================
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    needs: validate
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 24
+        uses: actions/setup-java@v4
+        with:
+          java-version: '24'
+          distribution: 'liberica'
+          cache: 'gradle'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}
+          gradle-home-cache-cleanup: true
+
+      - name: Check code formatting (Spotless)
+        run: ./gradlew spotlessCheck
+
+      - name: Generate documentation (Dokka)
+        if: ${{ github.ref == 'refs/heads/develop' || contains(github.ref, 'release/') }}
+        run: ./gradlew dokkaHtml
+
+      - name: Upload documentation artifacts
+        uses: actions/upload-artifact@v4
+        if: ${{ success() && (github.ref == 'refs/heads/develop' || contains(github.ref, 'release/')) }}
+        with:
+          name: documentation-${{ github.sha }}
+          path: '**/build/dokka/html'
+          retention-days: 7
+
+  # ==================== TESTING ====================
+  test:
+    name: Tests (JDK ${{ matrix.java-version }})
+    runs-on: ${{ matrix.os }}
+    needs: validate
+    if: ${{ !inputs.skip-tests }}
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    strategy:
+      matrix:
+        os: [ ubuntu-latest ]
+        java-version: [ '24' ]
+        include:
+          - os: ubuntu-latest
+            java-version: '24'
+            coverage: true
+      fail-fast: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ matrix.java-version }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.java-version }}
+          distribution: 'liberica'
+          cache: 'gradle'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}
+          gradle-home-cache-cleanup: true
+
+      - name: Run unit tests
+        run: ./gradlew test
+
+      - name: Run integration tests
+        if: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'integration-tests') }}
+        run: ./gradlew integrationTest
+
+      - name: Generate coverage report
+        if: matrix.coverage
+        run: ./gradlew koverXmlReport koverHtmlReport
+
+      - name: Upload test results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: |
+            **/build/test-results/test/TEST-*.xml
+            **/build/test-results/integrationTest/TEST-*.xml
+          check_name: Test Results (JDK ${{ matrix.java-version }})
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: matrix.coverage
+        with:
+          files: '**/build/reports/kover/report.xml'
+          flags: unittests
+          name: codecov-jdk-${{ matrix.java-version }}
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Add coverage comment to PR
+        uses: 5monkeys/cobertura-action@v14
+        if: ${{ matrix.coverage && github.event_name == 'pull_request' }}
+        with:
+          path: '**/build/reports/kover/report.xml'
+          minimum_coverage: 75
+          fail_below_threshold: false
+          show_missing: true
+          show_line: true
+          show_branch: true
+
+  # ==================== BUILD ====================
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: [ validate, code-quality, test ]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 24
+        uses: actions/setup-java@v4
+        with:
+          java-version: '24'
+          distribution: 'liberica'
+          cache: 'gradle'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}
+          gradle-home-cache-cleanup: true
+
+      - name: Build application
+        run: ./gradlew build -x test
+
+      - name: Build native image (GraalVM)
+        if: ${{ contains(github.ref, 'release/') || contains(github.ref, 'hotfix/') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
+        run: ./gradlew nativeCompile
+        env:
+          GRAALVM_HOME: ${{ env.JAVA_HOME }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts-${{ github.sha }}
+          path: |
+            app/build/libs/*.jar
+            app/build/native/nativeCompile/*
+          retention-days: 7
+
+  # ==================== SECURITY ====================
+  security:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    needs: validate
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 24
+        uses: actions/setup-java@v4
+        with:
+          java-version: '24'
+          distribution: 'liberica'
+          cache: 'gradle'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+          gradle-home-cache-cleanup: true
+
+      - name: Run OWASP Dependency Check
+        if: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'security-scan') }}
+        run: ./gradlew dependencyCheckAnalyze
+        continue-on-error: true
+
+      - name: Upload OWASP results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: owasp-report-${{ github.sha }}
+          path: 'build/reports/dependency-check-report.*'
+          retention-days: 30
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: 'trivy'
+
+  # ==================== DEPENDENCY UPDATES ====================
+  dependency-updates:
+    name: Check Dependency Updates
+    runs-on: ubuntu-latest
+    needs: validate
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/develop') }}
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 24
+        uses: actions/setup-java@v4
+        with:
+          java-version: '24'
+          distribution: 'liberica'
+          cache: 'gradle'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+
+      - name: Check for dependency updates
+        run: ./gradlew dependencyUpdates -Drevision=release
+
+      - name: Check for plugin updates
+        run: ./gradlew dependencyUpdates -Drevision=release -DoutputFormatter=json
+
+      - name: Create issue for updates
+        if: ${{ github.ref == 'refs/heads/develop' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('build/dependencyUpdates/report.json', 'utf8'));
+            if (report.outdated.dependencies.length > 0) {
+              // Create or update issue logic here
+            }
+
+  # ==================== CONTAINER BUILD ====================
+  container:
+    name: Build Container Images
+    runs-on: ubuntu-latest
+    needs: [ build, test, security ]
+    if: >
+      github.ref == 'refs/heads/master' || 
+      github.ref == 'refs/heads/develop' || 
+      startsWith(github.ref, 'refs/heads/feature/') || 
+      startsWith(github.ref, 'refs/heads/hotfix/') || 
+      startsWith(github.ref, 'refs/heads/release/')
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 24
+        uses: actions/setup-java@v4
+        with:
+          java-version: '24'
+          distribution: 'liberica'
+          cache: 'gradle'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
+            type=raw,value=develop,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=raw,value=release-candidate,enable=${{ contains(github.ref, 'release/') }}
+            type=sha,prefix={{branch}}-
+
+      - name: Build JVM container image
+        run: |
+          ./gradlew bootBuildImage \
+            --imageName=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }} \
+            --publishImage
+
+      - name: Build native container image
+        if: ${{ contains(github.ref, 'release/') || contains(github.ref, 'hotfix/') || startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          ./gradlew bootBuildImage \
+            --imageName=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}-native \
+            -Pnative \
+            --publishImage
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+          format: 'spdx-json'
+          output-file: 'sbom.spdx.json'
+
+      - name: Attest image
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.meta.outputs.digest }}
+          push-to-registry: true
+
+  # ==================== RELEASE ====================
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [ build, test, security, container ]
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts-${{ github.sha }}
+          path: artifacts
+
+      - name: Generate changelog
+        id: changelog
+        uses: mikepenz/release-changelog-builder-action@v5
+        with:
+          configuration: ".github/changelog-config.json"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body: ${{ steps.changelog.outputs.changelog }}
+          files: |
+            artifacts/**/*.jar
+            artifacts/**/*-runner
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref, '-rc') || contains(github.ref, '-beta') || contains(github.ref, '-alpha') }}
+
+  # ==================== DEPLOY ====================
+  deploy:
+    name: Deploy to ${{ matrix.environment }}
+    runs-on: ubuntu-latest
+    needs: [ container ]
+    if: |
+      github.event_name == 'push' && 
+      (github.ref == 'refs/heads/main' || 
+       github.ref == 'refs/heads/master' || 
+       contains(github.ref, 'release/') ||
+       contains(github.ref, 'hotfix/'))
+    strategy:
+      matrix:
+        include:
+          - environment: staging
+            branch_pattern: 'release/.*|hotfix/.*'
+          - environment: production
+            branch_pattern: 'main|master'
+    environment:
+      name: ${{ matrix.environment }}
+      url: ${{ steps.deploy.outputs.url }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check branch pattern
+        id: check
+        run: |
+          if [[ "${{ github.ref_name }}" =~ ${{ matrix.branch_pattern }} ]]; then
+            echo "should_deploy=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_deploy=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deploy to ${{ matrix.environment }}
+        id: deploy
+        if: steps.check.outputs.should_deploy == 'true'
+        run: |
+          echo "Deploying to ${{ matrix.environment }}..."
+          # Add your deployment logic here (kubectl, helm, terraform, etc.)
+          echo "url=https://${{ matrix.environment }}.example.com" >> $GITHUB_OUTPUT
+
+  # ==================== SUMMARY ====================
+  summary:
+    name: Pipeline Summary
+    runs-on: ubuntu-latest
+    needs: [ code-quality, test, build, security, container ]
+    if: always()
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Create summary
+        run: |
+          echo "# 📊 Build Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## 📝 Job Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| ✨ Code Quality | ${{ needs.code-quality.result == 'success' && '✅' || '❌' }} ${{ needs.code-quality.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🧪 Tests | ${{ needs.test.result == 'success' && '✅' || '❌' }} ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔨 Build | ${{ needs.build.result == 'success' && '✅' || '❌' }} ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔒 Security | ${{ needs.security.result == 'success' && '✅' || '❌' }} ${{ needs.security.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📦 Container | ${{ needs.container.result == 'success' && '✅' || needs.container.result == 'skipped' && '⏭️' || '❌' }} ${{ needs.container.result }} |" >> $GITHUB_STEP_SUMMARY
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📌 Build Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Event:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const summary = `
+            ## 🚀 Build Results
+            
+            | Check | Status |
+            |-------|--------|
+            | Code Quality | ${{ needs.code-quality.result }} |
+            | Tests | ${{ needs.test.result }} |
+            | Build | ${{ needs.build.result }} |
+            | Security | ${{ needs.security.result }} |
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
+
+      - name: Report status
+        if: contains(needs.*.result, 'failure')
+        run: exit 1
